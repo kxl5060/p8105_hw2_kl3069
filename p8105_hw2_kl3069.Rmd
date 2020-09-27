@@ -1,0 +1,285 @@
+---
+title: "P8105 Homework 2"
+author: "Kyung Suk Lee"
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    toc: yes
+---
+
+```{r load_packages, message = FALSE}
+library(tidyverse)
+library(readxl)
+
+knitr::opts_chunk$set(comment = NA, message = F, warning = F, echo = T)
+```
+
+## Problem 1
+
+### 1-1) Read and Clean Mr. Trash Wheel Sheet
+
+```{r mr_trashwheel}
+# Read excel file
+# Specify the sheet (Mr. Trash Wheel)
+# Omit non-data entries
+# Use reasonable variable names
+# Omit rows that do not include dumpster-specific data
+# Round the number of sports balls
+# Convert the result to integer
+
+trashwheel_df = 
+  read_xlsx("./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx",
+            sheet = "Mr. Trash Wheel", 
+            range = cell_cols("A:N")) %>% 
+  janitor::clean_names() %>% 
+  drop_na(dumpster) %>% 
+  mutate(
+    sports_balls = round(sports_balls),
+    sports_balls = as.integer(sports_balls)
+    )
+
+trashwheel_df
+```
+
+### 1-2) Read and Clean Precipitation Data (2017)
+
+```{r 2017_precipitation}
+# Read excel
+# Specify the sheet (2017 Precipitation)
+# Omit Precipitation (in)
+# Omit rows without precipitation data
+# Add a variable year
+
+precip_2017 = 
+  read_excel("./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx",
+             sheet = "2017 Precipitation",
+             skip = 1) %>%
+  janitor::clean_names() %>% 
+  drop_na(month) %>% 
+  mutate(year = 2017) %>% 
+  relocate(year)
+
+precip_2017
+```
+
+### 1-3) Read and Clean Precipitation Data (2018)
+
+```{r 2018 precipitation}
+# Read excel
+# Specify the sheet (2017 Precipitation)
+# Omit Precipitation (in)
+# Omit rows without precipitation data
+# Add a variable year
+
+precip_2018 = 
+  read_excel("./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx",
+             sheet = "2018 Precipitation",
+             skip = 1) %>%
+  janitor::clean_names() %>% 
+  drop_na(month) %>% 
+  mutate(year = 2018) %>% 
+  relocate(year)
+
+precip_2018
+```
+
+### 1-4) Combine Annual Precipitation
+
+```{r combine precipitation}
+# Create month dataframe
+# Combine precipitation 2017 & 2018
+# Left join precipitation & month by month
+
+month_df = 
+  tibble(month = 1:12,
+         month_name = month.name)
+
+precip_df = 
+  bind_rows(precip_2018, precip_2017)
+
+combined_precip_df = 
+  left_join(precip_df, month_df, by = "month") %>%
+  relocate(year, month, month_name)
+
+combined_precip_df
+```
+
+* Some description about the _Mr. Trashwheel Data_<br/>
+This dataset contains information regarding to the _Mr. Trashwheel_ trash collector in Baltimore, Maryland. As trash enters the inner harbor, the trashwheel collects that trash, and stores it in a dumpster. The final dataset contains information on _`r names(trashwheel_df)`_. There are total of **`r nrow(trashwheel_df)`** rows and **`r ncol(trashwheel_df)`** columns in the dataset. If we look at some key variables, from **`r min(pull(trashwheel_df, date))`** to **`r max(pull(trashwheel_df, date))`**, total of **`r round(sum(pull(trashwheel_df, weight_tons), na.rm = TRUE)) %>% format(big.mark = ",")`** tons of trash were gathered, averaging **`r round(mean(pull(trashwheel_df, weight_tons)))`** tons during the observed period. Among various trash collected, the number of cigarette butts collected was the highest. On average, in 2014, **`r round(trashwheel_df %>% filter(year == 2014) %>% pull(cigarette_butts) %>% mean()) %>% format(big.mark = ",")`**; in 2015, **`r round(trashwheel_df %>% filter(year == 2015) %>% pull(cigarette_butts) %>% mean()) %>% format(big.mark = ",")`**; in 2016, **`r round(trashwheel_df %>% filter(year == 2016) %>% pull(cigarette_butts) %>% mean()) %>% format(big.mark = ",")`**; in 2017, **`r round(trashwheel_df %>% filter(year == 2017) %>% pull(cigarette_butts) %>% mean()) %>% format(big.mark = ",")`**; in 2018, **`r round(trashwheel_df %>% filter(year == 2018) %>% pull(cigarette_butts) %>% mean()) %>% format(big.mark = ",")`**; in 2019,  **`r round(trashwheel_df %>% filter(year == 2019) %>% pull(cigarette_butts) %>% mean()) %>% format(big.mark = ",")`** cigarette butts were collected, respectively. From the average number of cigarette butts collected for each year, we could see a decreasing number of average of cigarette butts collected from year 2014 to 2019.<br/>
+
+* Some description about the _2017 & 2018 Precipitation Data_<br/>
+This dataset contains combined information of precipitation data from **`r min(pull(combined_precip_df, year))`** to **`r max(pull(combined_precip_df, year))`**. It comprises of **`r min(pull(combined_precip_df, month))`** to **`r max(pull(combined_precip_df, month))`** months period for each year, resulting total of **`r nrow(combined_precip_df)`** observations with _`r names(combined_precip_df)`_ columns. The total precipitation during the observed periods was **`r round(sum(pull(combined_precip_df, total)))`** inches, averaging **`r round(mean(pull(combined_precip_df, total)))`** inches. When we compare the average of total precipitation between 2017 (**`r round(combined_precip_df %>% filter(year == 2017) %>% pull(total) %>% mean())`** inches) and 2018 (**`r round(combined_precip_df %>% filter(year == 2018) %>% pull(total) %>% mean())`** inches), we can see that the average of total precipitation in 2018 was higher. For available data,<br/>
+  + The total precipitation in 2018 was **`r round(combined_precip_df %>% filter(year == 2018) %>% pull(total) %>% sum())`**
+  + The median number of sports balls in a dumpster in 2017 was **`r trashwheel_df %>% filter(year == 2017) %>% pull(sports_balls) %>% median()`**
+
+---
+
+## Problem 2
+
+### 2-1) Read and Clean NYC Transit Data
+
+```{r transit}
+# Read and clean the data
+# Retain variables
+# Convert the entry variable
+
+transit_df = 
+  read_csv("./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>% 
+  janitor::clean_names() %>% 
+  select(line:entry, vending, ada) %>% 
+  mutate(entry = recode(entry, "YES" = TRUE, "NO" = FALSE))
+
+transit_df
+```
+
+* Some description about the _NYC Transit Data_<br/>
+This data contains information related to each entrance and exit for each subway station in NYC. This dataset is comprised of _`r names(transit_df)`_ columns. In terms of data cleaning steps so far, first I have replaced each spaces by underscore (stylized as snake_case). Second, I have retained variables of interest. Third, I have recoded _entry_ variable from character (YES Vs NO) values to a logical (True Vs False) values. The resulting dataset has the size of **`r nrow(transit_df)`** rows and **`r ncol(transit_df)`** columns. The current dataset is **not tidy** enough for further analysis because it is difficult for us to analyze how other variables relates to _route1_ to _route11_. Thus, it could be reformatted so that _route number_ and _route name_ become distinct variables which would be more convenient for analyzing the data. Regards to the questions,<br/>
+  + There are **`r count(distinct(transit_df, station_name, line))`** distinct stations identified by both name and line
+  + There are **`r count(transit_df %>% filter(ada == TRUE) %>% distinct(station_name, line))`** stations that are compliant with ADA
+  + There are **`r count(transit_df %>% filter(vending == "NO"))`** station entrances / exits without vending. Among them, **`r count(transit_df %>% filter(vending == "NO") %>% filter(entry == TRUE))`** allow entry, resulting, approximately, **`r round({count(transit_df %>% filter(vending == "NO") %>% filter(entry == TRUE)) / count(transit_df %>% filter(vending == "NO"))}*100)`**% of station entrances / exits without vending to allow entrance
+
+### 2-2) Reformat Data
+
+```{r reformat}
+# Make route number and route name distinct variables
+
+transit_tidy_df =
+  transit_df %>%
+  gather(key = route_number, value = route_name, route1:route11)
+
+transit_tidy_df
+```
+
+* Questions regarding to _reformatted data_<br/>
+  + There are **`r count(transit_tidy_df %>% filter(route_name == "A") %>% distinct(station_name, line))`** distinct stations that serve the A train
+  + Of the stations that serve the A train, there are **`r count(transit_tidy_df %>% filter(route_name == "A" & ada == TRUE) %>% distinct(station_name, line))`** stations that are ADA compliant
+
+---
+
+## Problem 3
+
+### 3-1) Clean Pols-month Data
+
+```{r pols}
+# Clean the data
+# Separate 'mon' to year, month, and day
+# Replace month number with month name
+# Create a president variable
+# Remove prez_dem, prez_gop, day variables
+
+month_df1 = 
+  tibble(month = 1:12,
+         month_name = month.name)
+
+polsmonth_df = 
+  read_csv("./fivethirtyeight_datasets/pols-month.csv") %>% 
+  janitor::clean_names() %>%
+  separate(mon, c("year", "month", "day"), sep = "-") %>%
+  mutate(
+    month = as.integer(month),
+    year = as.integer(year)
+    )
+
+polsmonth_tidy_df =
+  left_join(polsmonth_df, month_df1, by = "month") %>%
+  select(-month) %>%
+  relocate(year, month_name) %>%
+  mutate(month_name = str_to_lower(month_name),
+         president = ifelse(prez_gop !=0, "gop", "dem")
+         ) %>%
+  select(-prez_gop, -prez_dem, -day) %>%
+  rename(month = month_name)
+
+polsmonth_tidy_df
+```
+
+### 3-2) Clean Snp Data
+
+```{r snp}
+# Clean the data
+# Arrange according to year and month
+# Organize leading columns
+
+month_df2 = 
+  tibble(month = 1:12,
+         month_name = month.name)
+
+snp_df =
+  read_csv("./fivethirtyeight_datasets/snp.csv") %>%
+  janitor::clean_names() %>%
+  separate(date, c("month", "day", "year"), sep = "/") %>%
+  mutate(
+    month = as.integer(month),
+    year = as.integer(year)
+    )
+
+snp_tidy_df =
+  left_join(snp_df, month_df2, by = "month") %>%
+  relocate(year, month_name) %>%
+  mutate(month_name = str_to_lower(month_name)) %>%
+  select(-month, -day) %>%
+  rename(
+    month = month_name,
+    close_stock_index = close
+    )
+
+snp_tidy_df
+```
+
+### 3-3) Tidy Unemployment Data
+
+```{r unemployment}
+# Tidy the unemployment data
+# Switch from “wide” to “long” format
+# Ensure that key variables have the same name
+# Ensure that key variables take the same values
+
+unemployment_tidy_df = 
+  read_csv("./fivethirtyeight_datasets/unemployment.csv") %>%
+  janitor::clean_names() %>%
+  rename(
+    january = "jan",
+    feburary = "feb",
+    march = "mar",
+    april = "apr",
+    may = "may",
+    june = "jun",
+    july = "jul",
+    august = "aug",
+    september = "sep",
+    october = "oct",
+    november = "nov",
+    december ="dec"
+    ) %>%
+  pivot_longer(
+    january:december,
+    names_to = "month",
+    values_to = "unemployment_rate"
+    )
+
+unemployment_tidy_df
+```
+
+### 3-4) Join Datasets
+
+```{r join}
+# Join the datasets
+
+joined_df = 
+  left_join(polsmonth_tidy_df, snp_tidy_df, by = c("year", "month"))
+
+final_df = 
+  left_join(joined_df, unemployment_tidy_df, by = c("year", "month"))
+
+final_df
+```
+
+* Some description of _pols-month_ dataset<br/>
+This dataset contains information related to the number of national politicians who are democratic or republican during the years from **`r min(pull(polsmonth_tidy_df, year))`** to **`r max(pull(polsmonth_tidy_df, year))`**. This dataset is comprised of _`r names(polsmonth_tidy_df)`_ columns and has the size of **`r nrow(polsmonth_tidy_df)`** rows and **`r ncol(polsmonth_tidy_df)`** columns. Among various variables, I have created new variable _president_ indicating whether the president was democratic (dem) or republican (gop) on the associated date. During the observed years, there were **`r polsmonth_tidy_df %>% filter(president == "gop") %>% count()`** presidents who were republican and **`r polsmonth_tidy_df %>% filter(president == "dem") %>% count()`** presidents who were democratic. Thus, by comparing the two parties, we are able to notice that the candidates from republican party were more appointed as the president compared to the democratic party.<br/>
+
+* Some description of _snp_ dataset<br/>
+This dataset contains information related to Standard & Poor’s stock market index (S&P), often used as a representative measure of stock market as a whole during the years from **`r min(pull(snp_tidy_df, year))`** to **`r max(pull(snp_tidy_df, year))`**. This dataset is comprised of _`r names(snp_tidy_df)`_ variables and has the size of **`r nrow(snp_tidy_df)`** rows and **`r ncol(snp_tidy_df)`** columns. When we look at the average closing values of the S&P stock index on the associated date, the values are, approximately, **`r round(snp_tidy_df %>% filter(year %in% c(1950:1970)) %>% pull(close_stock_index) %>%  mean(na.rm = TRUE))`** (from 1950 to 1970); **`r round(snp_tidy_df %>% filter(year %in% c(1970:1990)) %>% pull(close_stock_index) %>%  mean(na.rm = TRUE))`** (from 1970 to 1990); **`r round(snp_tidy_df %>% filter(year %in% c(1990:2010)) %>% pull(close_stock_index) %>%  mean(na.rm = TRUE))`** (from 1990 to 2010); **`r round(snp_tidy_df %>% filter(year %in% c(2010:2015)) %>% pull(close_stock_index) %>%  mean(na.rm = TRUE)) %>% format(big.mark = ",")`** (from 2010 to 2015). Hence, we can see that S&P stock index has increased over the years.<br/>
+
+* Some description of _unemployment_ dataset<br/>
+This dataset contains information related to percentage of unemployment during the years from **`r min(pull(unemployment_tidy_df, year))`** to **`r max(pull(unemployment_tidy_df, year))`**. This dataset is comprised of _`r names(unemployment_tidy_df)`_ variables and has the size of **`r nrow(unemployment_tidy_df)`** rows and **`r ncol(unemployment_tidy_df)`** columns. When we look at the average percentage of unemployment rate on the associated date, the values are, approximately, **`r round(unemployment_tidy_df %>% filter(year %in% c(1948:1970)) %>% pull(unemployment_rate) %>% mean(na.rm = TRUE))`**% (from 1948 to 1970); **`r round(unemployment_tidy_df %>% filter(year %in% c(1970:1990)) %>% pull(unemployment_rate) %>% mean(na.rm = TRUE))`**% (from 1970 to 1990); **`r round(unemployment_tidy_df %>% filter(year %in% c(1990:2010)) %>% pull(unemployment_rate) %>% mean(na.rm = TRUE))`**% (from 1990 to 2010); **`r round(unemployment_tidy_df %>% filter(year %in% c(2010:2015)) %>% pull(unemployment_rate) %>% mean(na.rm = TRUE))`**% (from 2010 to 2015). Therefore, we can see that unemployment rate has experienced somewhat increasing trend over the years.<br/>
+
